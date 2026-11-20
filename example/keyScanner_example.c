@@ -28,11 +28,10 @@ void keyScanner_example_init(void) {
     P21 = 1;
     P22 = 1;
 
-    /* ---- 2) 注册：每个键一个句柄；第二个参数是去抖时间（毫秒），传 0 用默认 20ms ---- */
-    keyReset = keyScanner_init(key_reset_is_pressed, 0);
-    keyMode0 = keyScanner_init(key_mode0_is_pressed, 0);
-    /* 拨动开关这种“拨到哪算哪”的键，去抖可以给得大一点，30ms 在注册时就定下来 */
-    keyMode1 = keyScanner_init(key_mode1_is_pressed, 30);
+    /* ---- 2) 注册：每个键一个句柄；去抖时间不在句柄上给，统一由 KEY_SCANNER_DEBOUNCE_MS 决定 ---- */
+    keyReset = keyScanner_init(key_reset_is_pressed);
+    keyMode0 = keyScanner_init(key_mode0_is_pressed);
+    keyMode1 = keyScanner_init(key_mode1_is_pressed);
 
     /* ---- 3) 启动：立即采样一次作为初始状态，上电即按住的键不会产生假事件 ---- */
     keyScanner_start(keyReset);

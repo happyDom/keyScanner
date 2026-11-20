@@ -9,10 +9,11 @@
  *       不存在“中断里正遍历、主程序同时摘链”的问题。
  * 状态机：每拍读一次原始状态 raw，与稳定状态 stable 比较：
  *         - 一致：去抖计数清零；
- *         - 不一致：计数累加，累加到 debounce 次才认定翻转，并按方向置边沿事件、复位/启动按住计数。
+ *         - 不一致：计数累加，累加到 KEY_SCANNER_DEBOUNCE_TICKS 次才认定翻转，并按方向置边沿事件、复位/启动按住计数。
  */
 
 #define KEY_SCANNER_CNT_MAX   0xFFFFu
+#define KEY_SCANNER_DEBOUNCE_TICKS  ((uint8_t)KEY_SCANNER_CNT_OF_MS(KEY_SCANNER_DEBOUNCE_MS))   /* 全局一套，编译期常量 */
 
 static KeyScanner KEY_SCANNER_MEM_ATTR keyPool[KEY_SCANNER_NUM];
 static uint16_t keyUsedCount;
@@ -33,8 +34,8 @@ static void keyScanner_sample(KeyScanner* handle){
     handle->evtRelease = 0;
 }
 
-/* 从静态池分配一个句柄：is_pressed 传 0 时换成空实现（永远不按下）；debounceMs 传 0 用默认去抖时间 */
-KeyScanner* keyScanner_init(io_is_pressed_func is_pressed, uint16_t debounceMs){
+/* 从静态池分配一个句柄：is_pressed 传 0 时换成空实现（永远不按下）；去抖时间统一取配置宏 */
+KeyScanner* keyScanner_init(io_is_pressed_func is_pressed){
     uint16_t i;
 
     for(i = 0; i < (uint16_t)KEY_SCANNER_NUM; i++){
@@ -43,8 +44,6 @@ KeyScanner* keyScanner_init(io_is_pressed_func is_pressed, uint16_t debounceMs){
 
         /* 先填内容、最后再置 inUse：扫描看到 inUse == 1 时，其余字段已经是完整的 */
         handle->is_pressed = is_pressed ? is_pressed : keyScanner_neverPressed;
-        handle->debounce   = (uint8_t)(debounceMs ? KEY_SCANNER_CNT_OF_MS(debounceMs)
-                                                  : KEY_SCANNER_CNT_OF_MS(KEY_SCANNER_DEBOUNCE_MS));
         handle->stable    = 0;
         handle->cnt       = 0;
         handle->evtPress  = 0;
@@ -110,7 +109,7 @@ void keyScanner_scan(void){
         }
 
         handle->cnt++;
-        if(handle->cnt < handle->debounce) continue;   /* 还没连续够，继续等 */
+        if(handle->cnt < KEY_SCANNER_DEBOUNCE_TICKS) continue;   /* 还没连续够，继续等 */
 
         /* 认定状态翻转 */
         handle->stable = raw;

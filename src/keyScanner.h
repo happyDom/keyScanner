@@ -14,7 +14,7 @@
  *   - 按键的原始电平由调用方通过 io_is_pressed_func 提供，返回 1 表示“按下/闭合”（动作态），
  *     因此低电平有效的按键要写成 return (0 == P20) ? 1 : 0;（与 flashCtrl 的 is_on 同一口径）；
  *   - 库不自己计时，由调用方按固定周期调用 keyScanner_scan()，该周期即“一拍”；
- *     去抖时间在注册时按毫秒给出（keyScanner_init 的 debounceMs，传 0 用默认 KEY_SCANNER_DEBOUNCE_MS），
+ *     去抖时间统一由项目配置里的 KEY_SCANNER_DEBOUNCE_MS 决定（毫秒），库内折算成拍，
  *     库内再按扫描周期折算成“拍”，所以调用方不必关心拍数；
  *   - 对外提供三类查询：稳定状态（isPressed / isReleased）、
  *     边沿事件（getPressedEvent / getReleasedEvent，读取后自动清除）、按住时长（getHoldMs）。
@@ -73,7 +73,7 @@
  * 3、isPressed 读的是去抖后的稳定状态；要对照万用表/示波器看引脚电平，用你的 read 回调自己读。
  * 4、按住时长 getHoldMs 只在“稳定按下”期间累计，松开即清零；
  *     它是查询值，不是事件，长按判定由调用方用 isLongPressed 或自己比较。
- * 5、句柄字段由库内维护，调用方不要改写（尤其 inUse / reading 两个字节会破坏分配与扫描）。
+ * 5、句柄字段由库内维护，调用方不要改写（尤其 inUse / scanning 两个字节会破坏分配与扫描）。
  * 6、事件读取后自动清除，多个任务/多处代码都要用同一个键时，请指定唯一一处负责取事件。
  */
 
@@ -82,7 +82,6 @@ typedef uint8_t (*io_is_pressed_func)(void);
 
 typedef struct KeyScanner {
     io_is_pressed_func is_pressed;   /* 原始状态读取（1 = 按下；永不为空，空指针由 init 换成空实现） */
-    uint8_t           debounce;     /* 连续一致采样次数（拍），由 KEY_SCANNER_DEBOUNCE_MS 折算而来 */
     uint8_t           stable;       /* 去抖后的稳定状态：1 = 按下 */
     uint8_t           cnt;          /* 与稳定状态不同的连续采样次数 */
     volatile uint8_t  evtPress;     /* 按下沿事件（读取后清除） */
@@ -93,11 +92,10 @@ typedef struct KeyScanner {
 } KeyScanner;
 
 /* 从静态池分配一个按键句柄：
- *   is_pressed: 原始状态读取回调，传 0 表示“永远不按下”的空实现（便于占位/可选按键）；
- *   debounceMs: 去抖时间（毫秒），传 0 表示用默认值 KEY_SCANNER_DEBOUNCE_MS；
- *               库内按 KEY_SCANNER_CYCLE_MS 折算成拍，调用方只关心毫秒。
+ *   is_pressed: 原始状态读取回调，传 0 表示“永远不按下”的空实现（便于占位/可选按键）。
+ * 去抖时间不按句柄给，统一取项目配置里的 KEY_SCANNER_DEBOUNCE_MS（毫秒，库内折算成拍）。
  * 返回 0 表示池已用尽（KEY_SCANNER_NUM 不够）。新句柄处于“未参与扫描”状态，需再调用 start。 */
-KeyScanner* keyScanner_init(io_is_pressed_func is_pressed, uint16_t debounceMs);
+KeyScanner* keyScanner_init(io_is_pressed_func is_pressed);
 
 /* 归还槽位：先摘出扫描，再清空状态。返回后该句柄不可再使用。 */
 void keyScanner_deinit(KeyScanner* handle);
