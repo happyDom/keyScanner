@@ -1,5 +1,5 @@
 {
-	"productId": "xxx-xx",
+	"productId": "f448e4f3-84c1-feaa-fc72-7e6eeee187b9",
 	"projectName":"projectName",
 	"objsToBePublished":"file1, file2@copy, file3",
 	"objsToBePublishedComment":"可以通过，分隔多个文件，文件名后以@表示发布广工，例如 file1@copy, file2@move，如果不标，默认是move",
