@@ -1,0 +1,42 @@
+/* SPDX-License-Identifier: MIT */
+/*
+ * userKeyScannerCfg.h.sample —— KeyScanner 库的用户配置文件参考样例
+ *
+ * 说明：本文件带 .sample 后缀，不会被任何头文件搜索路径当作配置文件使用，
+ *       它的作用只是给你一个可以照抄的样例，请不要在本库目录内修改它。
+ *
+ * 使用说明：
+ * 1、在你的项目里新建 userKeyScannerCfg.h（文件名去掉 .sample），把下面的宏抄进去并按项目情况修改，
+ *    不需要改动 KeyScanner 模块本身的任何代码。
+ * 2、KeyScanner.h 会引用你项目里的 userKeyScannerCfg.h，如果编译时提示
+ *    “please #define KEY_SCANNER_NUM //in userKeyScannerCfg.h”，
+ *    说明这个文件没有被找到，或 KEY_SCANNER_NUM 已被注释掉。
+ * 3、库内没有自带定时器，节拍由你按固定周期调用 keyScanner_scan() 产生，
+ *    所以 KEY_SCANNER_CYCLE_MS 必须与你的实际调用周期一致：
+ *    去抖次数、以及 getHoldMs 的毫秒换算都以该值为依据。
+ */
+#ifndef _USER_KEY_SCANNER_CFG_H_
+#define _USER_KEY_SCANNER_CFG_H_
+
+/* 需要扫描的按键数量（取值范围 1~255）
+ * 库内静态内存池的大小 = KEY_SCANNER_NUM * sizeof(KeyScanner)，该值直接决定本库占用的 RAM。
+ * 建议：开发初期先给一个够用的值，项目定形后用 keyScanner_getUsedCount()
+ *       读出实际使用数量，再调整到这里。 */
+#define KEY_SCANNER_NUM            3
+
+/* 扫描周期（一拍 = 多少毫秒），取值 1~255
+ * 必须与调用 keyScanner_scan() 的实际周期一致，例如 10ms 一拍就填 10。
+ * 10ms 一拍 + 默认去抖次数 2 → 约 20ms 去抖；想更灵敏就减小去抖次数，想更稳就加大。 */
+#define KEY_SCANNER_CYCLE_MS       10
+
+/* 默认去抖次数（拍）：连续这么多次采样一致，才认定按键状态翻转。
+ * 单个按键可以用 keyScanner_setDebounceCnt() 单独覆盖。 */
+#define KEY_SCANNER_DEBOUNCE_CNT   2
+
+/* 可选：静态内存池的存放区
+ * 在 51 类单片机上，可按项目情况指定 data/idata/xdata/pdata，
+ * 例如： #define KEY_SCANNER_MEM_ATTR      xdata
+ * 不定义时表示不限定存储区（由编译器默认处理）。 */
+/* #define KEY_SCANNER_MEM_ATTR      xdata */
+
+#endif /* _USER_KEY_SCANNER_CFG_H_ */

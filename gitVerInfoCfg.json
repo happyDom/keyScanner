@@ -1,0 +1,21 @@
+{
+	"productId": "xxx-xx",
+	"projectName":"projectName",
+	"objsToBePublished":"file1, file2@copy, file3",
+	"objsToBePublishedComment":"可以通过，分隔多个文件，文件名后以@表示发布广工，例如 file1@copy, file2@move，如果不标，默认是move",
+	"tgtDirForPublishing":"e:/demo",
+	"majorBranchName": "master",
+	"关于tag前缀的说明": "此前缀后必须紧跟一个数字，才能被识别为有效的tag，例如实际tag数字，才能被识别为有效的tag，例如实际tag m1.0是有效的，实际tag mr1.0 是无效的",
+	"tagPrefix_major": "m",
+	"minorBranchName": "release",
+	"tagPrefix_minor": "r",
+	"anchorChar": "⚓",
+	"mySql": {
+		"host": "127.0.0.1",
+		"user": "uName",
+		"pwd": "xxx",
+		"db": "demo",
+		"charset": "utf8",
+		"table": "gitVersion"
+	}
+}
