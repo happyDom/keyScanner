@@ -33,8 +33,8 @@ static void keyScanner_sample(KeyScanner* handle){
     handle->evtRelease = 0;
 }
 
-/* 从静态池分配一个句柄：is_pressed 传 0 时换成空实现（永远不按下） */
-KeyScanner* keyScanner_init(io_is_pressed_func is_pressed){
+/* 从静态池分配一个句柄：is_pressed 传 0 时换成空实现（永远不按下）；debounceMs 传 0 用默认去抖时间 */
+KeyScanner* keyScanner_init(io_is_pressed_func is_pressed, uint16_t debounceMs){
     uint16_t i;
 
     for(i = 0; i < (uint16_t)KEY_SCANNER_NUM; i++){
@@ -43,7 +43,8 @@ KeyScanner* keyScanner_init(io_is_pressed_func is_pressed){
 
         /* 先填内容、最后再置 inUse：扫描看到 inUse == 1 时，其余字段已经是完整的 */
         handle->is_pressed = is_pressed ? is_pressed : keyScanner_neverPressed;
-        handle->debounce  = KEY_SCANNER_DEBOUNCE_CNT;
+        handle->debounce   = (uint8_t)(debounceMs ? KEY_SCANNER_CNT_OF_MS(debounceMs)
+                                                  : KEY_SCANNER_CNT_OF_MS(KEY_SCANNER_DEBOUNCE_MS));
         handle->stable    = 0;
         handle->cnt       = 0;
         handle->evtPress  = 0;
@@ -88,13 +89,6 @@ void keyScanner_stop(KeyScanner* handle){
     if(0 == handle) return;
 
     handle->scanning = 0;
-    handle->cnt      = 0;
-}
-
-void keyScanner_setDebounceCnt(KeyScanner* handle, uint8_t debounceCnt){
-    if(0 == handle || 0 == handle->inUse) return;
-
-    handle->debounce = debounceCnt ? debounceCnt : (uint8_t)KEY_SCANNER_DEBOUNCE_CNT;
     handle->cnt      = 0;
 }
 

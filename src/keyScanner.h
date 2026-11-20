@@ -14,8 +14,8 @@
  *   - 按键的原始电平由调用方通过 io_is_pressed_func 提供，返回 1 表示“按下/闭合”（动作态），
  *     因此低电平有效的按键要写成 return (0 == P20) ? 1 : 0;（与 flashCtrl 的 is_on 同一口径）；
  *   - 库不自己计时，由调用方按固定周期调用 keyScanner_scan()，该周期即“一拍”；
- *     去抖的判定次数 KEY_SCANNER_DEBOUNCE_CNT 就以拍为单位，
- *     10ms 一拍、次数 2 → 约 20ms 去抖；
+ *     去抖时间在注册时按毫秒给出（keyScanner_init 的 debounceMs，传 0 用默认 KEY_SCANNER_DEBOUNCE_MS），
+ *     库内再按扫描周期折算成“拍”，所以调用方不必关心拍数；
  *   - 对外提供三类查询：稳定状态（isPressed / isReleased）、
  *     边沿事件（getPressedEvent / getReleasedEvent，读取后自动清除）、按住时长（getHoldMs）。
  *
@@ -40,10 +40,6 @@
 #define KEY_SCANNER_MEM_ATTR
 #endif
 
-#ifndef KEY_SCANNER_DEBOUNCE_CNT
-#define KEY_SCANNER_DEBOUNCE_CNT   2u     /* 连续一致采样次数（10ms 一拍时约 20ms 去抖） */
-#endif
-
 #ifndef KEY_SCANNER_NUM
 #error "please #define KEY_SCANNER_NUM          //in userKeyScannerCfg.h"
 #elif KEY_SCANNER_NUM <= 0
@@ -54,6 +50,17 @@
 #error "please #define KEY_SCANNER_CYCLE_MS     //in userKeyScannerCfg.h"
 #elif KEY_SCANNER_CYCLE_MS <= 0
 #error "KEY_SCANNER_CYCLE_MS must be greater than 0!"
+#endif
+
+#ifndef KEY_SCANNER_DEBOUNCE_MS
+#define KEY_SCANNER_DEBOUNCE_MS    20u   /* 默认去抖时间（毫秒），库内按扫描周期折算成拍 */
+#endif
+
+/* 毫秒 → 拍换算（向上取整）：保证非 0 的毫秒数至少折算为 1 拍，0 毫秒仍为 0 拍。
+ * 对外的时长口径一律是毫秒，库内自己折算成“拍”，调用方不需要关心拍数，
+ * 也就不会把自己的应用节拍与扫描节拍混为一谈。 */
+#ifndef KEY_SCANNER_CNT_OF_MS
+#define KEY_SCANNER_CNT_OF_MS(ms)  ((uint16_t)(((uint32_t)(ms) + (KEY_SCANNER_CYCLE_MS - 1u)) / KEY_SCANNER_CYCLE_MS))
 #endif
 
 /* 使用注意（集成到项目时踩过或容易踩的点）
@@ -75,7 +82,7 @@ typedef uint8_t (*io_is_pressed_func)(void);
 
 typedef struct KeyScanner {
     io_is_pressed_func is_pressed;   /* 原始状态读取（1 = 按下；永不为空，空指针由 init 换成空实现） */
-    uint8_t           debounce;     /* 连续一致采样次数（默认为 KEY_SCANNER_DEBOUNCE_CNT） */
+    uint8_t           debounce;     /* 连续一致采样次数（拍），由 KEY_SCANNER_DEBOUNCE_MS 折算而来 */
     uint8_t           stable;       /* 去抖后的稳定状态：1 = 按下 */
     uint8_t           cnt;          /* 与稳定状态不同的连续采样次数 */
     volatile uint8_t  evtPress;     /* 按下沿事件（读取后清除） */
@@ -85,9 +92,12 @@ typedef struct KeyScanner {
     uint8_t           scanning;     /* 参与扫描（start 置 1、stop 置 0） */
 } KeyScanner;
 
-/* 从静态池分配一个按键句柄：read 传 0 表示“永远不按下”的空实现（便于占位/可选按键）。
+/* 从静态池分配一个按键句柄：
+ *   is_pressed: 原始状态读取回调，传 0 表示“永远不按下”的空实现（便于占位/可选按键）；
+ *   debounceMs: 去抖时间（毫秒），传 0 表示用默认值 KEY_SCANNER_DEBOUNCE_MS；
+ *               库内按 KEY_SCANNER_CYCLE_MS 折算成拍，调用方只关心毫秒。
  * 返回 0 表示池已用尽（KEY_SCANNER_NUM 不够）。新句柄处于“未参与扫描”状态，需再调用 start。 */
-KeyScanner* keyScanner_init(io_is_pressed_func is_pressed);
+KeyScanner* keyScanner_init(io_is_pressed_func is_pressed, uint16_t debounceMs);
 
 /* 归还槽位：先摘出扫描，再清空状态。返回后该句柄不可再使用。 */
 void keyScanner_deinit(KeyScanner* handle);
@@ -98,9 +108,6 @@ void keyScanner_start(KeyScanner* handle);
 
 /* 退出扫描：状态冻结在最后一次采样结果，事件不再产生（切换界面时丢弃积压事件很有用）。 */
 void keyScanner_stop(KeyScanner* handle);
-
-/* 设置去抖次数（拍）：覆盖默认值；传 0 按默认值处理。 */
-void keyScanner_setDebounceCnt(KeyScanner* handle, uint8_t debounceCnt);
 
 /* 节拍函数：由调用方按固定周期调用，遍历所有已 start 的句柄完成去抖与事件生成。 */
 void keyScanner_scan(void);

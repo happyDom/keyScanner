@@ -26,12 +26,13 @@
 
 /* 扫描周期（一拍 = 多少毫秒），取值 1~255
  * 必须与调用 keyScanner_scan() 的实际周期一致，例如 10ms 一拍就填 10。
- * 10ms 一拍 + 默认去抖次数 2 → 约 20ms 去抖；想更灵敏就减小去抖次数，想更稳就加大。 */
+ * 它只用于库内把毫秒（去抖时间、按住时长）折算成拍，调用方不必自己算拍数。 */
 #define KEY_SCANNER_CYCLE_MS       10
 
-/* 默认去抖次数（拍）：连续这么多次采样一致，才认定按键状态翻转。
- * 单个按键可以用 keyScanner_setDebounceCnt() 单独覆盖。 */
-#define KEY_SCANNER_DEBOUNCE_CNT   2
+/* 默认去抖时间（毫秒）：连续这么久采样一致，才认定按键状态翻转。
+ * 库内按 KEY_SCANNER_CYCLE_MS 折算成拍（20ms / 10ms 一拍 = 2 拍）。
+ * 想更灵敏就调小，想更稳就调大；单个按键需要不同值时，在 keyScanner_init 的 debounceMs 参数里给。 */
+#define KEY_SCANNER_DEBOUNCE_MS    20
 
 /* 可选：静态内存池的存放区
  * 在 51 类单片机上，可按项目情况指定 data/idata/xdata/pdata，
