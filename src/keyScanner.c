@@ -16,7 +16,6 @@
 #define KEY_SCANNER_DEBOUNCE_TICKS  ((uint8_t)KEY_SCANNER_CNT_OF_MS(KEY_SCANNER_DEBOUNCE_MS))   /* 全局一套，编译期常量 */
 
 static KeyScanner KEY_SCANNER_MEM_ATTR keyPool[KEY_SCANNER_NUM];
-static uint16_t keyUsedCount;
 
 /* ---- 空对象：read 永远可调用 ------------------------------------------------------------
  * 函数指针与通用空指针宽度不保证一致（C251 上 code 指针 2 字节、通用空指针 3 字节），
@@ -52,27 +51,10 @@ KeyScanner* keyScanner_init(io_is_pressed_func is_pressed){
         handle->scanning  = 0;
         handle->inUse     = 1;
 
-        keyUsedCount++;
         return handle;
     }
 
     return 0;   /* 池已用尽 */
-}
-
-/* 归还槽位：先退出扫描，再清空；inUse 最后清，理由同上 */
-void keyScanner_deinit(KeyScanner* handle){
-    if(0 == handle) return;
-
-    handle->scanning   = 0;
-    handle->stable     = 0;
-    handle->cnt        = 0;
-    handle->evtPress   = 0;
-    handle->evtRelease = 0;
-    handle->holdCnt    = 0;
-    handle->is_pressed       = keyScanner_neverPressed;
-    handle->inUse      = 0;
-
-    if(keyUsedCount > 0) keyUsedCount--;
 }
 
 /* 纳入扫描：立即采样一次，避免上电即按住的键被当成一次事件 */
@@ -190,12 +172,4 @@ uint8_t keyScanner_isLongPressed(KeyScanner* handle, uint16_t holdMs){
     if(0 == handle->stable) return 0;
 
     return (keyScanner_getHoldMs(handle) >= holdMs) ? 1u : 0u;
-}
-
-uint16_t keyScanner_getUsedCount(void){
-    return keyUsedCount;
-}
-
-uint16_t keyScanner_getCapacity(void){
-    return (uint16_t)KEY_SCANNER_NUM;
 }

@@ -11,6 +11,7 @@
  *
  *   - 每个按键一个句柄（一个键 = 一个注册项），句柄由库内静态内存池分配，
  *     池的大小由项目侧的 KEY_SCANNER_NUM 决定，不使用动态内存；
+ *     按键个数在硬件上是确定的，宏一次写死即可，句柄分配后常驻、无释放与用量查询接口；
  *   - 按键的原始电平由调用方通过 io_is_pressed_func 提供，返回 1 表示“按下/闭合”（动作态），
  *     因此低电平有效的按键要写成 return (0 == P20) ? 1 : 0;（与 flashCtrl 的 is_on 同一口径）；
  *   - 库不自己计时，由调用方按固定周期调用 keyScanner_scan()，该周期即“一拍”；
@@ -94,11 +95,10 @@ typedef struct KeyScanner {
 /* 从静态池分配一个按键句柄：
  *   is_pressed: 原始状态读取回调，传 0 表示“永远不按下”的空实现（便于占位/可选按键）。
  * 去抖时间不按句柄给，统一取项目配置里的 KEY_SCANNER_DEBOUNCE_MS（毫秒，库内折算成拍）。
- * 返回 0 表示池已用尽（KEY_SCANNER_NUM 不够）。新句柄处于“未参与扫描”状态，需再调用 start。 */
+ * 返回 0 表示池已用尽（KEY_SCANNER_NUM 不够，按键个数是确定的，直接把宏改成实际按键数）。
+ * 句柄分配后常驻（池是编译期定死的静态数组），不提供释放接口。
+ * 新句柄处于“未参与扫描”状态，需再调用 start。 */
 KeyScanner* keyScanner_init(io_is_pressed_func is_pressed);
-
-/* 归还槽位：先摘出扫描，再清空状态。返回后该句柄不可再使用。 */
-void keyScanner_deinit(KeyScanner* handle);
 
 /* 纳入扫描：立即采样一次作为初始稳定状态（上电即按住的键不会产生假事件），
  * 之后由 keyScanner_scan() 每拍推进去抖与事件生成。 */
@@ -127,9 +127,5 @@ uint16_t keyScanner_getHoldMs(KeyScanner* handle);
 
 /* 长按判定：当前处于稳定按下、且按住时长已达 holdMs 时返回 1（查询值，不自动清除）。 */
 uint8_t keyScanner_isLongPressed(KeyScanner* handle, uint16_t holdMs);
-
-/* 用量统计：已分配数量 / 池容量（定形后据此把 KEY_SCANNER_NUM 收紧）。 */
-uint16_t keyScanner_getUsedCount(void);
-uint16_t keyScanner_getCapacity(void);
 
 #endif /* KEY_SCANNER_a61d2c4e_8f37_4a9b_b0d2_5c7e9f1083ab */

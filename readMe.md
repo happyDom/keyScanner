@@ -42,8 +42,7 @@ void app_loop(void) {
 
 | 接口 | 说明 |
 | --- | --- |
-| `keyScanner_init(is_pressed)` | 从池中分配一个句柄。`is_pressed` 传 0 时用「永远不按下」的空实现（可做可选按键占位）；池满返回 0 |
-| `keyScanner_deinit(h)` | 归还槽位（先退出扫描再清状态），返回后句柄不可用 |
+| `keyScanner_init(is_pressed)` | 从池中分配一个句柄。`is_pressed` 传 0 时用「永远不按下」的空实现（可做可选按键占位）；池满返回 0（按键个数确定，直接把 `KEY_SCANNER_NUM` 写成实际数）。句柄分配后常驻，无释放接口 |
 | `keyScanner_start(h)` | 纳入扫描，并立即采样一次作为初始稳定状态 |
 | `keyScanner_stop(h)` | 退出扫描，状态冻结、不再产生事件（切换界面时清掉积压事件很有用） |
 | `keyScanner_scan()` | 节拍函数，遍历所有已 start 的句柄推进去抖与事件生成 |
@@ -53,7 +52,6 @@ void app_loop(void) {
 | `keyScanner_clearEvents(h)` | 丢弃该句柄积压的边沿事件 |
 | `keyScanner_getHoldMs(h)` | 稳定按住的毫秒数（按 `KEY_SCANNER_CYCLE_MS` 换算，饱和 65535），松开为 0 |
 | `keyScanner_isLongPressed(h, ms)` | 当前稳定按下且按住已达 `ms` 毫秒 |
-| `keyScanner_getUsedCount()` / `keyScanner_getCapacity()` | 已分配数量 / 池容量（定形后据此收紧 `KEY_SCANNER_NUM`） |
 
 ## 语义与边界
 
