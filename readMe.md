@@ -14,7 +14,7 @@
 
 ## 接入三步
 
-1）项目里新建 `userKeyScannerCfg.h`（照抄 `cfg/userKeyScannerCfg.h.sample`），定义 `KEY_SCANNER_NUM` 和 `KEY_SCANNER_CYCLE_MS`（可选 `KEY_SCANNER_MEM_ATTR` 指定池存放区）；
+1）项目里新建 `userKeyScannerCfg.h`（照抄 `cfg/userKeyScannerCfg.h.sample`），定义 `KEY_SCANNER_NUM` 和 `KEY_SCANNER_CYCLE_MS`；可选 `KEY_SCANNER_DEBOUNCE_MS`（不定义时默认 20ms）、可选 `KEY_SCANNER_MEM_ATTR` 指定池存放区；
 2）给每个按键写一个 `is_pressed` 回调，返回 1 表示「按下/闭合」；
 3）初始化时 `keyScanner_init` + `keyScanner_start`，之后每拍调用一次 `keyScanner_scan()`。
 

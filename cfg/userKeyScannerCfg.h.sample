@@ -7,7 +7,7 @@
  *
  * 使用说明：
  * 1、在你的项目里新建 userKeyScannerCfg.h（文件名去掉 .sample），把下面的宏抄进去并按项目情况修改，
- *    不需要改动 KeyScanner 模块本身的任何代码。
+ *    不需要改动 KeyScanner 模块本身的任何代码；同时把 src/ 目录加入头文件搜索路径。
  * 2、KeyScanner.h 会引用你项目里的 userKeyScannerCfg.h，如果编译时提示
  *    “please #define KEY_SCANNER_NUM //in userKeyScannerCfg.h”，
  *    说明这个文件没有被找到，或 KEY_SCANNER_NUM 已被注释掉。
@@ -18,25 +18,27 @@
 #ifndef _USER_KEY_SCANNER_CFG_H_
 #define _USER_KEY_SCANNER_CFG_H_
 
-/* 需要扫描的按键数量（取值范围 1~255）
+/* 需要扫描的按键数量（必须大于 0）
  * 库内静态内存池的大小 = KEY_SCANNER_NUM * sizeof(KeyScanner)，该值直接决定本库占用的 RAM。
  * 按键个数在硬件上是确定的，数清后有几种就写成几；句柄分配后常驻，库内没有释放/用量查询接口。 */
 #define KEY_SCANNER_NUM            3
 
-/* 扫描周期（一拍 = 多少毫秒），取值 1~255
+/* 扫描周期（一拍 = 多少毫秒，必须大于 0）
  * 必须与调用 keyScanner_scan() 的实际周期一致，例如 10ms 一拍就填 10。
  * 它只用于库内把毫秒（去抖时间、按住时长）折算成拍，调用方不必自己算拍数。 */
 #define KEY_SCANNER_CYCLE_MS       10
 
-/* 默认去抖时间（毫秒）：连续这么久采样一致，才认定按键状态翻转。
- * 库内按 KEY_SCANNER_CYCLE_MS 折算成拍（20ms / 10ms 一拍 = 2 拍）。
- * 所有按键共用这一个值（注册时不按句柄传），想更灵敏就调小，想更稳就调大。 */
+/* 去抖时间（毫秒）—— 可选，不定义时库内默认 20ms
+ * 连续这么久采样一致，才认定按键状态翻转；库内按 KEY_SCANNER_CYCLE_MS 折算成拍
+ * （20ms / 10ms 一拍 = 2 拍）。所有按键共用这一个值，想更灵敏就调小，想更稳就调大。 */
 #define KEY_SCANNER_DEBOUNCE_MS    20
 
 /* 可选：静态内存池的存放区
- * 在 51 类单片机上，可按项目情况指定 data/idata/xdata/pdata，
- * 例如： #define KEY_SCANNER_MEM_ATTR      xdata
- * 不定义时表示不限定存储区（由编译器默认处理）。 */
+ * 在 51 类单片机上，可按项目情况指定 data/idata/xdata/pdata，例如：
+ *      #define KEY_SCANNER_MEM_ATTR      xdata
+ * 不定义时表示不限定存储区（由编译器默认处理）。
+ * 放心指定 xdata：keyScanner_init 第一次分配前会先把所有槽位的占用标志清一遍，
+ * 不依赖启动代码清 RAM（xdata 在复位和上电时都不会被清零）。 */
 // #define KEY_SCANNER_MEM_ATTR      xdata
 
 #endif /* _USER_KEY_SCANNER_CFG_H_ */
