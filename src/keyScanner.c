@@ -17,6 +17,26 @@
 
 static KeyScanner KEY_SCANNER_MEM_ATTR keyPool[KEY_SCANNER_NUM];
 
+/* 池是否已做过"首次清零"。
+ * 不依赖启动代码把 RAM 清 0：池可能被指定到不随启动清零的区域（KEY_SCANNER_MEM_ATTR），
+ * 复位后槽位上残留上一次运行留下的 inUse=1，init 会以为"池已用尽"直接返回 0（空句柄），
+ * 上电时更糟：随机非 0 的 inUse 让某个槽位被当成已分配，is_pressed 是垃圾函数指针，
+ * 一扫描就跑飞。所以分配前先自己把占用标志清一遍。 */
+static uint8_t poolInited;
+
+static void ensurePoolInited(void){
+    uint16_t i;
+
+    if(poolInited) return;
+
+    for(i = 0; i < (uint16_t)KEY_SCANNER_NUM; i++){
+        keyPool[i].inUse    = 0;
+        keyPool[i].scanning = 0;
+    }
+
+    poolInited = 1;
+}
+
 /* ---- 空对象：read 永远可调用 ------------------------------------------------------------
  * 函数指针与通用空指针宽度不保证一致（C251 上 code 指针 2 字节、通用空指针 3 字节），
  * 直接把通用空指针赋给函数指针会截断并触发 C151 告警。改用“空实现”兜底后，
@@ -36,6 +56,8 @@ static void keyScanner_sample(KeyScanner* handle){
 /* 从静态池分配一个句柄：is_pressed 传 0 时换成空实现（永远不按下）；去抖时间统一取配置宏 */
 KeyScanner* keyScanner_init(io_is_pressed_func is_pressed){
     uint16_t i;
+
+    ensurePoolInited();
 
     for(i = 0; i < (uint16_t)KEY_SCANNER_NUM; i++){
         KeyScanner* handle = &keyPool[i];

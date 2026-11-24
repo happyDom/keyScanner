@@ -72,6 +72,7 @@ void app_loop(void) {
 - **没有链表**：句柄在池里的位置固定，扫描就是按槽位顺序遍历，所以 `start` / `stop` 只是写一个单字节，不需要「请求—节拍内执行」的队列。
 - **`KEY_SCANNER_NUM` 就是 RAM**：池大小 = `KEY_SCANNER_NUM * sizeof(KeyScanner)`，按实际按键数量给。
 - **池的存放区可指定**：在 `userKeyScannerCfg.h` 里加一行 `#define KEY_SCANNER_MEM_ATTR xdata`（可选 `data/idata/xdata/pdata`），整个 `keyPool` 就落到该区，不定义时按编译器默认（如 `edata`）。只改句柄的存放位置，接口与语义不变，句柄指针由编译器按存储类处理，调用方不用改。
+- **池不依赖启动清 RAM**：`keyScanner_init` 第一次分配前会把所有槽位的 `inUse`/`scanning` 清一遍。所以池落到 `xdata`（复位/上电都不会被清零）也安全 —— 否则复位后旧槽位仍显示“已分配”，`init` 直接返回空句柄（按键全无反应），上电时更可能把随机值当成已分配槽位、拿垃圾函数指针去扫描。
 
 ## 参与贡献
 
