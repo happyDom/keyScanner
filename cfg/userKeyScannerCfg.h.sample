@@ -37,6 +37,6 @@
  * 在 51 类单片机上，可按项目情况指定 data/idata/xdata/pdata，
  * 例如： #define KEY_SCANNER_MEM_ATTR      xdata
  * 不定义时表示不限定存储区（由编译器默认处理）。 */
-/* #define KEY_SCANNER_MEM_ATTR      xdata */
+// #define KEY_SCANNER_MEM_ATTR      xdata
 
 #endif /* _USER_KEY_SCANNER_CFG_H_ */

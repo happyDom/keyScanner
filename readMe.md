@@ -8,13 +8,13 @@
 
 - 每个按键一个句柄，句柄从库内静态内存池分配（数量由 `KEY_SCANNER_NUM` 决定），不用动态内存、不用 `malloc`；
 - 库不自己计时，由你按固定周期调用 `keyScanner_scan()`，这个周期就是「一拍」；
-- 只依赖 `<stdint.h>`，不依赖任何芯片头文件，因此可以原样搬到别的项目。
+- 只依赖 `<stdint.h>`，不依赖任何芯片头文件，因此可以原样搬到别的项目；池的存放区可选（`KEY_SCANNER_MEM_ATTR`，如 `xdata`），不定义时按编译器默认。
 
 **许可证：MIT**（可自由用于商业产品与闭源固件，详见 [LICENSE](LICENSE)）
 
 ## 接入三步
 
-1）项目里新建 `userKeyScannerCfg.h`（照抄 `cfg/userKeyScannerCfg.h.sample`），定义 `KEY_SCANNER_NUM` 和 `KEY_SCANNER_CYCLE_MS`；
+1）项目里新建 `userKeyScannerCfg.h`（照抄 `cfg/userKeyScannerCfg.h.sample`），定义 `KEY_SCANNER_NUM` 和 `KEY_SCANNER_CYCLE_MS`（可选 `KEY_SCANNER_MEM_ATTR` 指定池存放区）；
 2）给每个按键写一个 `is_pressed` 回调，返回 1 表示「按下/闭合」；
 3）初始化时 `keyScanner_init` + `keyScanner_start`，之后每拍调用一次 `keyScanner_scan()`。
 
@@ -71,6 +71,7 @@ void app_loop(void) {
 - **句柄字段由库内维护**：`inUse`、`scanning` 被外部改动会破坏分配与扫描逻辑，`is_pressed`/`stable` 等也不要在外部写。
 - **没有链表**：句柄在池里的位置固定，扫描就是按槽位顺序遍历，所以 `start` / `stop` 只是写一个单字节，不需要「请求—节拍内执行」的队列。
 - **`KEY_SCANNER_NUM` 就是 RAM**：池大小 = `KEY_SCANNER_NUM * sizeof(KeyScanner)`，按实际按键数量给。
+- **池的存放区可指定**：在 `userKeyScannerCfg.h` 里加一行 `#define KEY_SCANNER_MEM_ATTR xdata`（可选 `data/idata/xdata/pdata`），整个 `keyPool` 就落到该区，不定义时按编译器默认（如 `edata`）。只改句柄的存放位置，接口与语义不变，句柄指针由编译器按存储类处理，调用方不用改。
 
 ## 参与贡献
 
