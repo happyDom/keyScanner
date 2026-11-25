@@ -71,6 +71,10 @@
  *     需要严格不丢事件时，读清动作放在同一处临界区（EA=0 / EA=1）里，或改用计数方式。
  * 2、start 时会立即采样一次作为初始稳定状态，所以“上电那一刻按住的键”不会产生一次假事件；
  *     但这也意味着 keyScanner_start 之后即认为状态有效，无需再等去抖。
+ *     与之配套：**事件只用一字节编码（无事件 / 按下沿 / 松开沿），只认最近一次边沿**——
+ *     扫描认定翻转时把新沿直接写进这一字节，旧沿随之被覆盖，任何时刻最多一条待读事件。
+ *     所以“上电即按住、之后松开”留下的那条孤立松开沿，会在用户真正按下那一拍被覆盖，
+ *     不会等到进了下一个状态才冒出来把状态弹回去。
  * 3、isPressed 读的是去抖后的稳定状态；要对照万用表/示波器看引脚电平，用你的 read 回调自己读。
  * 4、按住时长 getHoldMs 只在“稳定按下”期间累计，松开即清零；
  *     它是查询值，不是事件，长按判定由调用方用 isLongPressed 或自己比较。
@@ -81,12 +85,18 @@
 /* 读取按键原始状态的回调：返回 1 = 按下/闭合（动作态），0 = 松开/断开 */
 typedef uint8_t (*io_is_pressed_func)(void);
 
+/* 边沿事件的编码：一字节只存一个值，写新值即覆盖旧沿（事件不排队，只留最近一次痕迹） */
+typedef enum {
+    KEY_EVT_NONE    = 0,   /* 无待读事件 */
+    KEY_EVT_PRESS   = 1,   /* 松开 → 按下 */
+    KEY_EVT_RELEASE = 2    /* 按下 → 松开 */
+} keyEvt_t;
+
 typedef struct KeyScanner {
     io_is_pressed_func is_pressed;   /* 原始状态读取（1 = 按下；永不为空，空指针由 init 换成空实现） */
     uint8_t           stable;       /* 去抖后的稳定状态：1 = 按下 */
     uint8_t           cnt;          /* 与稳定状态不同的连续采样次数 */
-    volatile uint8_t  evtPress;     /* 按下沿事件（读取后清除） */
-    volatile uint8_t  evtRelease;   /* 松开沿事件（读取后清除） */
+    volatile uint8_t  evt;          /* 待读的最近一次边沿（keyEvt_t 编码，读取后清除） */
     uint16_t          holdCnt;      /* 稳定按下的拍数（饱和，松开清零） */
     uint8_t           inUse;        /* 槽位已分配 */
     uint8_t           scanning;     /* 参与扫描（start 置 1、stop 置 0） */
@@ -115,11 +125,17 @@ uint8_t keyScanner_isPressed(KeyScanner* handle);
 uint8_t keyScanner_isReleased(KeyScanner* handle);
 
 /* 边沿事件：本次扫描以来发生过“松开→按下”返回 1，读取后自动清除。
- * 自复位按键用它做“按一下触发一次”。 */
+ * 自复位按键用它做“按一下触发一次”。
+ * 事件只认最近一次边沿：两个 get 读的是同一个单字节字段的不同取值，
+ * 若期间出现过一次更晚的边沿，先前的沿已被覆盖（不排队）。
+ * 上电即按住产生的“孤立松开沿”会在用户真正按下的那一拍被覆盖。
+ * 只想拿电平变化（例如拨动开关），读 isPressed 即可。 */
 uint8_t keyScanner_getPressedEvent(KeyScanner* handle);
 uint8_t keyScanner_getReleasedEvent(KeyScanner* handle);
 
-/* 丢弃该句柄积压的全部边沿事件。 */
+/* 丢弃该句柄待读的边沿事件。
+ * 只清“通知”，不改 stable / holdCnt：按键的当前状态与按住时长照常按真实电平走，
+ * 之后发生的边沿仍然照常产生事件。 */
 void keyScanner_clearEvents(KeyScanner* handle);
 
 /* 稳定按住的时长（毫秒，按 KEY_SCANNER_CYCLE_MS 换算，饱和到 65535）：松开时为 0。 */

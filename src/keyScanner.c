@@ -49,8 +49,7 @@ static void keyScanner_sample(KeyScanner* handle){
     handle->stable  = (handle->is_pressed)() ? 1u : 0u;
     handle->cnt     = 0;
     handle->holdCnt = (handle->stable) ? 1u : 0u;
-    handle->evtPress   = 0;
-    handle->evtRelease = 0;
+    handle->evt     = KEY_EVT_NONE;
 }
 
 /* 从静态池分配一个句柄：is_pressed 传 0 时换成空实现（永远不按下）；去抖时间统一取配置宏 */
@@ -67,8 +66,7 @@ KeyScanner* keyScanner_init(io_is_pressed_func is_pressed){
         handle->is_pressed = is_pressed ? is_pressed : keyScanner_neverPressed;
         handle->stable    = 0;
         handle->cnt       = 0;
-        handle->evtPress  = 0;
-        handle->evtRelease = 0;
+        handle->evt       = KEY_EVT_NONE;
         handle->holdCnt   = 0;
         handle->scanning  = 0;
         handle->inUse     = 1;
@@ -119,12 +117,15 @@ void keyScanner_scan(void){
         handle->stable = raw;
         handle->cnt    = 0;
 
+        /* 事件只留最近一次边沿：直接写新值，旧沿被覆盖，不存在两个方向同时挂起的可能。
+         * 若是“上电按住后松开”留下的那条孤立松开沿，用户真正按下时这里一并盖掉，
+         * 不会等到进下一个状态才冒出来。 */
         if(raw){
-            handle->evtPress = 1;               /* 松开 → 按下 */
-            handle->holdCnt  = 0;               /* 从本拍起由下面的循环开始累计 */
+            handle->evt    = KEY_EVT_PRESS;     /* 松开 → 按下 */
+            handle->holdCnt = 0;                /* 从本拍起由下面的循环开始累计 */
         }else{
-            handle->evtRelease = 1;             /* 按下 → 松开 */
-            handle->holdCnt    = 0;
+            handle->evt    = KEY_EVT_RELEASE;   /* 按下 → 松开 */
+            handle->holdCnt = 0;
         }
     }
 
@@ -149,32 +150,27 @@ uint8_t keyScanner_isReleased(KeyScanner* handle){
     return (handle->stable) ? 0u : 1u;
 }
 
-/* 事件读取后自动清除 */
+/* 事件读取后自动清除。两个事件共用同一字节的不同取值，所以这里只需要比一次值 */
 uint8_t keyScanner_getPressedEvent(KeyScanner* handle){
-    uint8_t evt;
-
     if(0 == handle || 0 == handle->inUse) return 0;
+    if(KEY_EVT_PRESS != handle->evt) return 0;
 
-    evt = handle->evtPress;
-    handle->evtPress = 0;
-    return evt;
+    handle->evt = KEY_EVT_NONE;
+    return 1;
 }
 
 uint8_t keyScanner_getReleasedEvent(KeyScanner* handle){
-    uint8_t evt;
-
     if(0 == handle || 0 == handle->inUse) return 0;
+    if(KEY_EVT_RELEASE != handle->evt) return 0;
 
-    evt = handle->evtRelease;
-    handle->evtRelease = 0;
-    return evt;
+    handle->evt = KEY_EVT_NONE;
+    return 1;
 }
 
 void keyScanner_clearEvents(KeyScanner* handle){
     if(0 == handle || 0 == handle->inUse) return;
 
-    handle->evtPress   = 0;
-    handle->evtRelease = 0;
+    handle->evt = KEY_EVT_NONE;
 }
 
 /* 按住时长：拍数 × 周期，饱和到 65535 毫秒（避免长按很久后回绕） */
